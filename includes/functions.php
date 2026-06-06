@@ -254,3 +254,52 @@ function statusBadge(string $status): string {
     $class = $colors[$status] ?? 'badge-secondary';
     return '<span class="badge ' . $class . '">' . ucfirst(e($status)) . '</span>';
 }
+
+/**
+ * Auto-assign editor with fewest active tasks
+ */
+function getAutoAssignEditor(): int|false {
+    $db = getDB();
+    $stmt = $db->query(
+        "SELECT e.id_editor
+         FROM editor e
+         LEFT JOIN editing_foto ef ON e.id_editor = ef.id_editor AND ef.status IN ('menunggu','editing')
+         WHERE e.status = 'aktif'
+         GROUP BY e.id_editor
+         ORDER BY COUNT(ef.id_editing) ASC
+         LIMIT 1"
+    );
+    $row = $stmt->fetch();
+    return $row ? (int)$row['id_editor'] : false;
+}
+
+/**
+ * Create editing task for a booking
+ */
+function createEditingTask(int $bookingId, int $editorId): void {
+    $db = getDB();
+    $db->prepare("INSERT INTO editing_foto (id_booking, id_editor, status) VALUES (?, ?, 'menunggu')")
+       ->execute([$bookingId, $editorId]);
+}
+
+/**
+ * Check if editing is complete for a booking
+ */
+function isEditingComplete(int $bookingId): bool {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT status FROM editing_foto WHERE id_booking = ? ORDER BY id_editing DESC LIMIT 1");
+    $stmt->execute([$bookingId]);
+    $row = $stmt->fetch();
+    return $row && $row['status'] === 'selesai';
+}
+
+/**
+ * Count uploaded photos for a booking
+ */
+function getPhotoCountByBooking(int $bookingId): int {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT COUNT(*) FROM galeri_foto WHERE id_booking = ?");
+    $stmt->execute([$bookingId]);
+    return (int)$stmt->fetchColumn();
+}
+

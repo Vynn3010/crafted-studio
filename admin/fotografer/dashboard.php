@@ -7,13 +7,42 @@ require_once __DIR__ . '/../../includes/functions.php';
 
 requireRole('fotografer');
 
-$today = date('Y-m-d');
-$dateFilter = $_GET['date'] ?? '';
-$bookings = getBookingsByFotografer($_SESSION['user_id'], $dateFilter ?: null);
+$db = getDB();
+$flash = getFlash();
 
-// Separate today's and upcoming
-$todayBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] === $today);
+// Handle POST: fotografer marks photo session as done
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action    = $_POST['action'] ?? '';
+    $bookingId = (int)($_POST['booking_id'] ?? 0);
+
+    if ($action === 'selesai_foto' && $bookingId) {
+        // Verify booking belongs to this fotografer and is dikonfirmasi
+        $stmt = $db->prepare("SELECT id_booking FROM booking WHERE id_booking = ? AND id_fotografer = ? AND status = 'dikonfirmasi'");
+        $stmt->execute([$bookingId, $_SESSION['user_id']]);
+        if ($stmt->fetch()) {
+            $editorId = getAutoAssignEditor();
+            if ($editorId) {
+                $db->prepare("UPDATE booking SET status = 'diproses' WHERE id_booking = ?")
+                   ->execute([$bookingId]);
+                createEditingTask($bookingId, $editorId);
+                setFlash('success', 'Sesi foto #CS-' . str_pad($bookingId, 4, '0', STR_PAD_LEFT) . ' ditandai selesai. Tugas editing diteruskan ke editor.');
+            } else {
+                setFlash('error', 'Tidak ada editor aktif saat ini. Hubungi admin.');
+            }
+        } else {
+            setFlash('error', 'Booking tidak valid atau bukan milik Anda.');
+        }
+        header('Location: dashboard.php');
+        exit;
+    }
+}
+
+$today = date('Y-m-d');
+$bookings = getBookingsByFotografer($_SESSION['user_id'], '');
+
+$todayBookings    = array_filter($bookings, fn($b) => $b['tanggal_booking'] === $today);
 $upcomingBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] > $today);
+$totalDikonfirmasi = count(array_filter($bookings, fn($b) => $b['status'] === 'dikonfirmasi'));
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -40,6 +69,9 @@ $upcomingBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] > $t
                 <a href="dashboard.php" class="nav-item active">
                     <span class="icon"><i class="ph ph-squares-four"></i></span>
                     Dashboard
+                    <?php if ($totalDikonfirmasi > 0): ?>
+                    <span class="badge-nav"><?= $totalDikonfirmasi ?></span>
+                    <?php endif; ?>
                 </a>
             </div>
         </nav>
@@ -52,7 +84,7 @@ $upcomingBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] > $t
                     <p>Fotografer</p>
                 </div>
             </div>
-            <a href="../logout.php" class="nav-item" style="margin-top:12px;color:var(--danger);">
+            <a href="../logout.php?role=fotografer" class="nav-item" style="margin-top:12px;color:var(--danger);">
                 <span class="icon"><i class="ph ph-sign-out"></i></span>
                 Logout
             </a>
@@ -67,6 +99,13 @@ $upcomingBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] > $t
                 <i class="ph ph-calendar"></i> <?= date('d M Y') ?>
             </span>
         </div>
+
+        <?php if ($flash): ?>
+        <div class="flash flash-<?= $flash['type'] ?>">
+            <i class="ph ph-<?= $flash['type'] === 'success' ? 'check-circle' : 'warning-circle' ?>"></i>
+            <?= e($flash['message']) ?>
+        </div>
+        <?php endif; ?>
 
         <!-- Stats -->
         <div class="stats-grid">
@@ -102,7 +141,7 @@ $upcomingBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] > $t
                 <?php else: ?>
                 <table class="data-table">
                     <thead>
-                        <tr><th>Waktu</th><th>Pelanggan</th><th>Paket</th><th>Studio</th><th>Status</th></tr>
+                        <tr><th>Waktu</th><th>Pelanggan</th><th>Paket</th><th>Studio</th><th>Status</th><th>Aksi</th></tr>
                     </thead>
                     <tbody>
                         <?php foreach ($todayBookings as $b): ?>
@@ -112,6 +151,23 @@ $upcomingBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] > $t
                             <td><?= e($b['nama_paket']) ?></td>
                             <td><?= e($b['nama_ruangan'] ?? 'Belum ditentukan') ?></td>
                             <td><?= statusBadge($b['status']) ?></td>
+                            <td>
+                                <?php if ($b['status'] === 'dikonfirmasi'): ?>
+                                <form method="POST" style="display:inline;" onsubmit="return confirm('Tandai sesi foto selesai? Tugas akan diteruskan ke editor.')">
+                                    <input type="hidden" name="action" value="selesai_foto">
+                                    <input type="hidden" name="booking_id" value="<?= $b['id_booking'] ?>">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="ph ph-check-circle"></i> Selesai Foto
+                                    </button>
+                                </form>
+                                <?php elseif ($b['status'] === 'diproses'): ?>
+                                <span class="badge badge-primary"><i class="ph ph-paint-brush"></i> Di-edit</span>
+                                <?php elseif ($b['status'] === 'selesai'): ?>
+                                <span class="badge badge-success">✓ Selesai</span>
+                                <?php else: ?>
+                                <span class="badge badge-warning">Menunggu</span>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -134,7 +190,7 @@ $upcomingBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] > $t
                 <?php else: ?>
                 <table class="data-table">
                     <thead>
-                        <tr><th>Tanggal</th><th>Waktu</th><th>Pelanggan</th><th>Paket</th><th>Studio</th></tr>
+                        <tr><th>Tanggal</th><th>Waktu</th><th>Pelanggan</th><th>Paket</th><th>Studio</th><th>Status</th><th>Aksi</th></tr>
                     </thead>
                     <tbody>
                         <?php foreach ($upcomingBookings as $b): ?>
@@ -144,6 +200,24 @@ $upcomingBookings = array_filter($bookings, fn($b) => $b['tanggal_booking'] > $t
                             <td><?= e($b['nama_pelanggan']) ?></td>
                             <td><?= e($b['nama_paket']) ?></td>
                             <td><?= e($b['nama_ruangan'] ?? 'TBA') ?></td>
+                            <td><?= statusBadge($b['status']) ?></td>
+                            <td>
+                                <?php if ($b['status'] === 'dikonfirmasi'): ?>
+                                <form method="POST" style="display:inline;" onsubmit="return confirm('Tandai sesi foto selesai? Tugas akan diteruskan ke editor.')">
+                                    <input type="hidden" name="action" value="selesai_foto">
+                                    <input type="hidden" name="booking_id" value="<?= $b['id_booking'] ?>">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="ph ph-check-circle"></i> Selesai Foto
+                                    </button>
+                                </form>
+                                <?php elseif ($b['status'] === 'diproses'): ?>
+                                <span class="badge badge-primary"><i class="ph ph-paint-brush"></i> Di-edit</span>
+                                <?php elseif ($b['status'] === 'selesai'): ?>
+                                <span class="badge badge-success">✓ Selesai</span>
+                                <?php else: ?>
+                                <span class="badge badge-warning">Menunggu</span>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>

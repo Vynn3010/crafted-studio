@@ -56,7 +56,7 @@ $bookings = getAllBookings($statusFilter, $dateFilter);
                     <p><?= e($_SESSION['role']) ?></p>
                 </div>
             </div>
-            <a href="../logout.php" class="nav-item" style="margin-top:12px;color:var(--danger);">
+            <a href="../logout.php?role=admin" class="nav-item" style="margin-top:12px;color:var(--danger);">
                 <span class="icon"><i class="ph ph-sign-out"></i></span> Logout
             </a>
         </div>

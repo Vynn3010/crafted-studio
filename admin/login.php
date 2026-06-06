@@ -20,8 +20,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $result = attemptLogin($email, $password);
         if ($result) {
+            // Determine role-specific session name and redirect target
+            $role = $result['role'];
+            if ($role === 'fotografer') {
+                $targetSession = 'cs_fotografer';
+                $redirectPath  = 'fotografer/dashboard.php';
+            } elseif ($role === 'editor') {
+                $targetSession = 'cs_editor';
+                $redirectPath  = 'editor/dashboard.php';
+            } else {
+                $targetSession = 'cs_admin';
+                $redirectPath  = 'admin/dashboard.php';
+            }
+
+            // Close the current (login-page) session, then open the role's session
+            session_write_close();
+            session_name($targetSession);
+            session_start();
+
             loginUser($result);
-            header('Location: index.php');
+
+            header('Location: ' . $redirectPath);
             exit;
         } else {
             $error = 'Email atau password salah.';

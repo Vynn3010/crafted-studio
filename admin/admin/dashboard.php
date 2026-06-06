@@ -173,7 +173,7 @@ $conflicts = detectConflicts($bookings);
                     <p><?= e($_SESSION['role']) ?></p>
                 </div>
             </div>
-            <a href="../logout.php" class="nav-item" style="margin-top:12px;color:var(--danger);">
+            <a href="../logout.php?role=admin" class="nav-item" style="margin-top:12px;color:var(--danger);">
                 <span class="icon"><i class="ph ph-sign-out"></i></span>
                 Logout
             </a>
@@ -301,15 +301,23 @@ $conflicts = detectConflicts($bookings);
                                     </button>
                                 </form>
                                 <?php elseif ($b['status'] === 'dikonfirmasi'): ?>
-                                <form method="POST" style="display:inline;">
-                                    <input type="hidden" name="action" value="selesai">
-                                    <input type="hidden" name="booking_id" value="<?= $b['id_booking'] ?>">
-                                    <button type="submit" class="btn btn-primary btn-sm">
-                                        <i class="ph ph-check-circle"></i> Selesai
-                                    </button>
-                                </form>
+                                <span class="badge badge-info"><i class="ph ph-camera"></i> Menunggu Fotografer</span>
+                                <?php elseif ($b['status'] === 'diproses'): ?>
+                                    <?php if (isEditingComplete($b['id_booking'])): ?>
+                                    <form method="POST" style="display:inline;">
+                                        <input type="hidden" name="action" value="selesai">
+                                        <input type="hidden" name="booking_id" value="<?= $b['id_booking'] ?>">
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="ph ph-check-circle"></i> Validasi Selesai
+                                        </button>
+                                    </form>
+                                    <?php else: ?>
+                                    <span class="badge badge-primary"><i class="ph ph-paint-brush"></i> Menunggu Editor</span>
+                                    <?php endif; ?>
                                 <?php elseif ($b['status'] === 'dibatalkan'): ?>
                                 <span style="color:var(--text-muted);font-size:0.8rem;">—</span>
+                                <?php elseif ($b['status'] === 'selesai'): ?>
+                                <span class="badge badge-success">✓ Selesai</span>
                                 <?php else: ?>
                                 <span class="badge badge-success">✓</span>
                                 <?php endif; ?>

@@ -153,7 +153,7 @@ $totalDikonfirmasi = count(array_filter($bookings, fn($b) => $b['status'] === 'd
                             <td><?= statusBadge($b['status']) ?></td>
                             <td>
                                 <?php if ($b['status'] === 'dikonfirmasi'): ?>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Tandai sesi foto selesai? Tugas akan diteruskan ke editor.')">
+                                <form method="POST" style="display:inline;">
                                     <input type="hidden" name="action" value="selesai_foto">
                                     <input type="hidden" name="booking_id" value="<?= $b['id_booking'] ?>">
                                     <button type="submit" class="btn btn-success btn-sm">
@@ -203,7 +203,7 @@ $totalDikonfirmasi = count(array_filter($bookings, fn($b) => $b['status'] === 'd
                             <td><?= statusBadge($b['status']) ?></td>
                             <td>
                                 <?php if ($b['status'] === 'dikonfirmasi'): ?>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Tandai sesi foto selesai? Tugas akan diteruskan ke editor.')">
+                                <form method="POST" style="display:inline;">
                                     <input type="hidden" name="action" value="selesai_foto">
                                     <input type="hidden" name="booking_id" value="<?= $b['id_booking'] ?>">
                                     <button type="submit" class="btn btn-success btn-sm">

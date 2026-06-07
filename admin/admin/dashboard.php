@@ -293,7 +293,7 @@ $conflicts = detectConflicts($bookings);
                                 <button class="btn btn-success btn-sm" onclick="openConfirmModal(<?= $b['id_booking'] ?>)">
                                     <i class="ph ph-check"></i> Konfirmasi
                                 </button>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Batalkan booking ini?')">
+                                <form method="POST" style="display:inline;">
                                     <input type="hidden" name="action" value="batalkan">
                                     <input type="hidden" name="booking_id" value="<?= $b['id_booking'] ?>">
                                     <button type="submit" class="btn btn-danger btn-sm">
